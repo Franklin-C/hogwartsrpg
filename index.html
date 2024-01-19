@@ -1,0 +1,1312 @@
+<link href="data:image/x-icon;base64,AAABAAEAEBAQAAAAAAAoAQAAFgAAACgAAAAQAAAAIAAAAAEABAAAAAAAgAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAACub6AP+EAAAICAgAL4/UAIJICQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMzMzMwAAAAMiIiIjAAAAMiIiIiIwAAMiJVVVIjQAMiJSIhUzRAMiJSIhETRAAyJSIiISNAADIlIiIiIwAAMlIhIiEjAAAyUhESERIwADIzISIhIjAAMwAyIiIhIzAABAMyIhESMABAAAMyISIwBAAAAAMzMwAAAAAAAAAAD8AwAA+AMAAPABAADgAAAAwAAAAIABAACAAwAAgAcAAIAHAACAAwAAgAMAAJgAAAD0AAAA7wAAAN/BAAD//wAA" rel="icon" type="image/x-icon">
+<link id="themeStylesheet" rel="stylesheet" href="styles/ravenclaw.css">
+<link id="themeStylesheet" rel="stylesheet" href="styles/style.css">
+<title>HOGWARTS: TEXT RPG</title>
+<div class="wrapper">
+    <h2 class="ribbon">
+        Hogwarts: Text RPG
+        <img width="90px" id="hat" src="https://cdn2.hubspot.net/hubfs/678613/Projects/CodePen/Harry%20Potter%20Sorting%20Hat/Sorting%20Hat.png" alt="Sorting Hat">
+    </h2>
+</div>
+<div id="game">
+    <div id="stats">
+        <div class="level-container">
+            <div class="level-circle" id="level-circle">
+                <div class="circle-progress-bar">
+                    <div class="circle-progress-bar-fill" id="circle-progress-bar-fill"></div>
+                    <div class="circle-progress-bar-cover"></div>
+                </div>
+                <span id="level">1</span>
+            </div>
+        </div>
+        <div class="health-bar-container">
+            <div class="health-bar" id="health-bar">
+                <div class="health-bar-fill" id="health-bar-fill"></div>
+                <span id="health-text">100/100</span>
+            </div>
+        </div>        
+        <div class="currency-container">
+            <div class="currency">
+                <div class="coin bronze tooltip">
+                    <span class="tooltiptext">Knuts</span>
+                </div>
+                <strong><span id="knuts">50</span></strong>
+            </div>
+            <div class="currency">
+                <div class="coin silver tooltip">
+                    <span class="tooltiptext">Sickles</span>
+                </div>
+                <strong><span id="sickles">0</span></strong>
+            </div>
+            <div class="currency">
+                <div class="coin gold tooltip">
+                    <span class="tooltiptext">Galleons</span>
+                </div>
+                <strong><span id="galleons">0</span></strong>
+            </div>            
+        </div>
+    </div>    
+    <div id="controls"></div>
+        <div id="monsterStats">
+            <span class="stat">Monster Name: <strong><span id="monsterName"></span></strong></span>
+            <span class="stat">Health: <strong><span id="monsterHealth"></span></strong></span>
+        </div>
+        <div id="text">You are in the town square. Where do you want to go? Use the buttons above.</div>
+</div>
+<div style="text-align: center;">
+    <select id="themeSelector" style="display: none;">
+        <option value="ravenclaw">ravenclaw</option>
+        <option value="gryffindor">gryffindor</option>
+        <option value="hufflepuff">hufflepuff</option>
+        <option value="slytherin">slytherin</option>
+    </select>
+</div>
+<script>
+let level, xp, playerHealth, playerAttackPower, playerDefense, wand, spellcount, currentQuest, knuts, sickles, galleons, currentLocation, inventory, currentWeapon, currentEnemy, enemyHealth;
+//LOCATIONS
+const locations = [
+    {
+        id: "townsquare",
+        name: "Town Square",
+        buttonText: ["Inventory", "Diagon Alley", "Forbidden Forest", "Ministry of Magic", "Quidditch"],
+        buttonFunctions: [
+            () => changeLocation('displayInventory'),
+            () => changeLocation('diagonalley'), 
+            () => changeLocation('forbiddenForest'), 
+            () => changeLocation('ministryofmagic'),
+            () => changeLocation('quidditch')
+        ],
+        text: "You are in the Town Square, bustling with wizards and magical creatures.",
+        buttonLevelRequirements: { 3: 2, 4: 3 }
+    },
+    {
+        id: "diagonalley",
+        name: "Diagon Alley",
+        buttonText: ["Return to Town Square"],
+        buttonFunctions: [() => visitDiagonAlley()],
+        text: "You walk through the cobbled streets of Diagon Alley, filled with shops and wizarding wares."
+    },
+    {
+    id: "forbiddenForest",
+      name: "Forbidden Forest",
+      buttonText: ["Search for Creatures", "Look for Magical Herbs", "Return to Town Square"],
+      buttonFunctions: [() => changeLocation('forbiddenForestEncounter'), () => changeLocation('lookForHerbs'), () => changeLocation('townsquare')],
+      text: "The Forbidden Forest is dark and full of mysteries, home to many magical creatures."
+    },
+    {
+        id: "ministryofmagic",
+        name: "Ministry of Magic",
+        buttonText: ["Request a Mission", "Return to Town Square"],
+        buttonFunctions: [() => changeLocation('requestMission'), () => changeLocation('townsquare')],
+        text: "The Ministry of Magic governs the wizarding world. Here, you can learn powerful spells and take on special missions.",
+        requiredLevel: 2
+    },
+    {
+    id: "hospitalWing",
+      name: "Ministry of Magic",
+      buttonText: ["Return to Town Square"],
+      buttonFunctions: [() => changeLocation('townsquare')],
+      text: "Madam Poppy Pomfrey, the school's matron, has run the Hospital Wing since at least 1971."
+    },
+    {
+        id: "inventory",
+        name: "Inventory",
+        buttonText: ["Return to Town Square"],
+        buttonFunctions: [() => changeLocation('townsquare')],
+        text: "You are looking at your inventory."
+    },
+    {
+    id: "quidditch",
+    name: "Quidditch Field",
+    buttonText: ["Play Quidditch", "Return to Town Square"],
+    buttonFunctions: [() => startQuidditchGame(), () => changeLocation('townsquare')],
+    text: "Welcome to the Quidditch Field. Prepare for a high-flying magical match.",
+    requiredLevel: 3
+    }
+  ];
+function updateLocation() {
+  const locationText = currentLocation.text;
+  document.getElementById("text").textContent = locationText;
+  updateButtons(currentLocation.buttonText, currentLocation.buttonFunctions, currentLocation.buttonLevelRequirements);
+}
+function changeLocation(locationId) {
+    if (locationId === 'forbiddenForest') {
+        forbiddenForestEncounter();
+    } else if (locationId === 'displayInventory') {
+        displayInventory();
+    } else if (locationId === 'diagonalley') {
+        displayDiagonAlley();
+    } else if (locationId === 'quidditch') {
+        startQuidditchGame();
+    } else if (locationId === 'ministryofmagic') {
+        document.getElementById("text").textContent = "";
+        if (level >= 2 && !inventory.includes(wand.name)) {
+            inventory.push(wand.name);
+            document.getElementById("text").textContent += "\nCongratulations on reaching level 2! You have received a " + wand.name + ". \n You can now use your wand in battle. It is powerful! \n\n Upgrade it by completing quests. \n";
+        }
+        let buttonTexts = ["Return to Town Square"];
+        let buttonFunctions = [() => changeLocation('townsquare')];
+        if (currentQuest) {
+            document.getElementById("text").textContent += "Current Quest: Collect " + currentQuest.amount + " " + currentQuest.item + "(s).";
+            buttonTexts.unshift("Complete Quest");
+            buttonFunctions.unshift(() => completeQuest());
+        }
+        if (!currentQuest) {
+            assignNewQuest();
+        }
+        updateButtons(buttonTexts, buttonFunctions);
+    } else {
+        const location = locations.find(loc => loc.id === locationId);
+        if (location) {
+            currentLocation = location;
+            updateLocation();
+        } else {
+            console.error("Location not found:", locationId);
+        }
+    }
+}
+function forbiddenForestEncounter() {
+    const encounterType = Math.random();
+    if (encounterType < 0.3) {
+        findRandomItem();
+    } else if (encounterType < 0.6) {
+        findRandomMoney();
+    } else if (encounterType < 0.8) {
+        findRandomWeapon();
+    } else {
+        startBattle();
+    }
+}
+function visitDiagonAlley() {
+    const textElement = document.getElementById("text");
+    textElement.innerHTML = "Welcome to Diagon Alley! Here's what's available for purchase:";
+    displayItemsForSale();
+    const returnButton = document.createElement('button');
+    returnButton.textContent = 'Return to Town Square';
+    returnButton.onclick = () => changeLocation('townsquare');
+    textElement.appendChild(returnButton);
+}
+
+//QUESTS
+function assignNewQuest() {
+    const questItem = items[Math.floor(Math.random() * items.length)].name;
+    const requiredAmount = Math.floor(Math.random() * 5) + 1;
+
+    currentQuest = { item: questItem, amount: requiredAmount };
+    document.getElementById("text").textContent += "\nNew Quest: Collect " + requiredAmount + " " + questItem + "(s).";
+}
+function completeQuest() {
+    const questItemCount = inventory.filter(item => item === currentQuest.item).length;
+    if (questItemCount >= currentQuest.amount) {
+        inventory = inventory.filter(item => item !== currentQuest.item).slice(0, questItemCount - currentQuest.amount);
+        wand.level++;
+        document.getElementById("text").textContent = "Quest completed! Your wand has been upgraded to level " + wand.level + ".";
+        assignNewQuest();
+    } else {
+        document.getElementById("text").textContent = "You don't have enough " + currentQuest.item + "s to complete the quest.";
+    }
+}
+
+//WEAPONS
+const weapons = [
+    { name: "Goblin-Made Dagger", minLevel: 1, baseAttack: 6, baseSpecialAttackMultiplier: 1.1, baseCriticalHitChance: 0.12, baseDefenseBonus: 1, baseHealthBonus: 5, cost: 50, costType: "bronze" },
+    { name: "Basilisk Fang", minLevel: 6, baseAttack: 12, baseSpecialAttackMultiplier: 1.4, baseCriticalHitChance: 0.16, baseDefenseBonus: 3, baseHealthBonus: 20, cost: 100, costType: "bronze" },
+    { name: "Dragon Scale Sword", minLevel: 10, baseAttack: 18, baseSpecialAttackMultiplier: 1.6, baseCriticalHitChance: 0.18, baseDefenseBonus: 5, baseHealthBonus: 30, cost: 3, costType: "silver" },
+    { name: "Phoenix Feather Blade", minLevel: 15, baseAttack: 24, baseSpecialAttackMultiplier: 1.8, baseCriticalHitChance: 0.20, baseDefenseBonus: 7, baseHealthBonus: 40, cost: 5, costType: "silver" },
+    { name: "Manticore Claw Scimitar", minLevel: 20, baseAttack: 30, baseSpecialAttackMultiplier: 2.0, baseCriticalHitChance: 0.22, baseDefenseBonus: 9, baseHealthBonus: 50, cost: 7, costType: "silver" },
+    { name: "Wyvern Wing Lance", minLevel: 25, baseAttack: 36, baseSpecialAttackMultiplier: 2.2, baseCriticalHitChance: 0.24, baseDefenseBonus: 11, baseHealthBonus: 60, cost: 10, costType: "silver" },
+    { name: "Serpent Tail Whip", minLevel: 30, baseAttack: 42, baseSpecialAttackMultiplier: 2.4, baseCriticalHitChance: 0.26, baseDefenseBonus: 13, baseHealthBonus: 70, cost: 15, costType: "silver" },
+    { name: "Griffin Beak Hammer", minLevel: 35, baseAttack: 48, baseSpecialAttackMultiplier: 2.6, baseCriticalHitChance: 0.28, baseDefenseBonus: 15, baseHealthBonus: 80, cost: 20, costType: "silver" },
+    { name: "Thunderbolt Axe", minLevel: 40, baseAttack: 54, baseSpecialAttackMultiplier: 2.8, baseCriticalHitChance: 0.30, baseDefenseBonus: 17, baseHealthBonus: 90, cost: 25, costType: "silver" },
+    { name: "Cerberus Fang Glaive", minLevel: 45, baseAttack: 60, baseSpecialAttackMultiplier: 3.0, baseCriticalHitChance: 0.32, baseDefenseBonus: 19, baseHealthBonus: 100, cost: 30, costType: "silver" },
+    { name: "Kraken Tentacle Whip", minLevel: 50, baseAttack: 66, baseSpecialAttackMultiplier: 3.2, baseCriticalHitChance: 0.34, baseDefenseBonus: 21, baseHealthBonus: 110, cost: 35, costType: "silver" },
+    { name: "Minotaur Horn Sword", minLevel: 55, baseAttack: 72, baseSpecialAttackMultiplier: 3.4, baseCriticalHitChance: 0.36, baseDefenseBonus: 23, baseHealthBonus: 120, cost: 40, costType: "silver" },
+    { name: "Gorgon Medusa Bow", minLevel: 60, baseAttack: 78, baseSpecialAttackMultiplier: 3.6, baseCriticalHitChance: 0.38, baseDefenseBonus: 25, baseHealthBonus: 130, cost: 45, costType: "silver" },
+    { name: "Chimera Claw Dagger", minLevel: 65, baseAttack: 84, baseSpecialAttackMultiplier: 3.8, baseCriticalHitChance: 0.40, baseDefenseBonus: 27, baseHealthBonus: 140, cost: 50, costType: "silver" },
+    { name: "Hydra Head Mace", minLevel: 70, baseAttack: 90, baseSpecialAttackMultiplier: 4.0, baseCriticalHitChance: 0.42, baseDefenseBonus: 29, baseHealthBonus: 150, cost: 55, costType: "silver" },
+    { name: "Cyclops Eye Spear", minLevel: 75, baseAttack: 96, baseSpecialAttackMultiplier: 4.2, baseCriticalHitChance: 0.44, baseDefenseBonus: 31, baseHealthBonus: 160, cost: 60, costType: "silver" },
+    { name: "Banshee Wail Sickle", minLevel: 80, baseAttack: 102, baseSpecialAttackMultiplier: 4.4, baseCriticalHitChance: 0.46, baseDefenseBonus: 33, baseHealthBonus: 170, cost: 65, costType: "silver" },
+    { name: "Sirens' Song Flute", minLevel: 85, baseAttack: 108, baseSpecialAttackMultiplier: 4.6, baseCriticalHitChance: 0.48, baseDefenseBonus: 35, baseHealthBonus: 180, cost: 70, costType: "silver" },
+    { name: "Harpy Feather Spear", minLevel: 90, baseAttack: 114, baseSpecialAttackMultiplier: 4.8, baseCriticalHitChance: 0.50, baseDefenseBonus: 37, baseHealthBonus: 190, cost: 75, costType: "silver" },
+    { name: "Molten Lava Blade", minLevel: 95, baseAttack: 120, baseSpecialAttackMultiplier: 5.0, baseCriticalHitChance: 0.52, baseDefenseBonus: 39, baseHealthBonus: 200, cost: 80, costType: "silver" },
+    { name: "Divine Excalibur", minLevel: 100, baseAttack: 150, baseSpecialAttackMultiplier: 5.5, baseCriticalHitChance: 0.60, baseDefenseBonus: 50, baseHealthBonus: 250, cost: 100, costType: "gold" }
+];
+function scaleWeaponAttributes(weapon, weaponLevel) {
+    let scaleMultiplier = weaponLevel / weapon.minLevel;
+    return {
+        name: weapon.name,
+        level: weaponLevel,
+        attack: Math.round(weapon.baseAttack * scaleMultiplier),
+        specialAttackMultiplier: weapon.baseSpecialAttackMultiplier * scaleMultiplier,
+        criticalHitChance: weapon.baseCriticalHitChance * scaleMultiplier,
+        defenseBonus: Math.round(weapon.baseDefenseBonus * scaleMultiplier),
+        healthBonus: Math.round(weapon.baseHealthBonus * scaleMultiplier)
+    };
+}
+function findWeapon(weaponName, foundLevel) {
+    let weapon = weapons.find(w => w.name === weaponName);
+    if (weapon && foundLevel >= weapon.minLevel) {
+        return scaleWeaponAttributes(weapon, foundLevel);
+    } else {
+        console.error("Weapon not found or level too low");
+        return null;
+    }
+}
+function findRandomWeapon() {
+    const availableWeapons = weapons.filter(w => level >= w.minLevel && level <= w.minLevel + 15);
+    if (availableWeapons.length > 0) {
+        const randomWeapon = availableWeapons[Math.floor(Math.random() * availableWeapons.length)];
+        inventory.push(randomWeapon.name);
+        document.getElementById("text").textContent = "You found a " + randomWeapon.name + ".";
+    } else {
+        document.getElementById("text").textContent = "You didn't find anything.";
+    }
+}
+
+//ITEMS
+const items = [
+    // Consumables
+    { name: "Basic Health Potion", category: "consumable", effect: { type: "restoreHealth", amount: 20 }, cost: 15, costType: "bronze" },
+    { name: "Greater Health Potion", category: "consumable", effect: { type: "restoreHealth", amount: 50 }, cost: 30, costType: "bronze" },
+    { name: "Superior Health Potion", category: "consumable", effect: { type: "restoreHealth", amount: 75 }, cost: 1, costType: "silver" },
+    { name: "Mega Health Potion", category: "consumable", effect: { type: "restoreHealth", amount: 100 }, cost: 2, costType: "silver" },
+    { name: "Minor Health Potion", category: "consumable", effect: { type: "restoreHealthPercentage", amount: 10 }, cost: 20, costType: "bronze" },
+    { name: "Standard Health Potion", category: "consumable", effect: { type: "restoreHealthPercentage", amount: 25 }, cost: 1, costType: "silver" },
+    { name: "Major Health Potion", category: "consumable", effect: { type: "restoreHealthPercentage", amount: 50 }, cost: 2, costType: "silver" },
+    { name: "Super Health Potion", category: "consumable", effect: { type: "restoreHealthPercentage", amount: 75 }, cost: 3, costType: "silver" },
+    { name: "Ultra Health Potion", category: "consumable", effect: { type: "restoreHealthPercentage", amount: 100 }, cost: 5, costType: "silver" },
+    // Quest items
+    { name: "Ancient Scroll", category: "quest", effect: {}, cost: 50, costType: "bronze" },
+    { name: "Enchanted Gemstone", category: "quest", effect: {}, cost: 75, costType: "bronze" },
+    { name: "Mystic Feather", category: "quest", effect: {}, cost: 1, costType: "silver" },
+    { name: "Arcane Crystal", category: "quest", effect: {}, cost: 1, costType: "silver" },
+    { name: "Dragon Scale", category: "quest", effect: {}, cost: 2, costType: "silver" },
+    { name: "Wizard's Map", category: "quest", effect: {}, cost: 3, costType: "silver" },
+    { name: "Sorcerer's Seal", category: "quest", effect: {}, cost: 4, costType: "silver" },
+    { name: "Cursed Amulet", category: "quest", effect: {}, cost: 5, costType: "silver" },
+    { name: "Lost Relic", category: "quest", effect: {}, cost: 10, costType: "silver" },
+    { name: "Ancient Rune", category: "quest", effect: {}, cost: 15, costType: "silver" },
+    { name: "Phantom Pearl", category: "quest", effect: {}, cost: 20, costType: "silver" },
+    { name: "Mystical Shard", category: "quest", effect: {}, cost: 25, costType: "silver" },
+    { name: "Forbidden Manuscript", category: "quest", effect: {}, cost: 30, costType: "silver" },
+    { name: "Ethereal Flower", category: "quest", effect: {}, cost: 35, costType: "silver" },
+    { name: "Celestial Stone", category: "quest", effect: {}, cost: 40, costType: "silver" },
+    { name: "Alchemist's Stone", category: "quest", effect: {}, cost: 45, costType: "silver" },
+    { name: "Goblin's Gold", category: "quest", effect: {}, cost: 50, costType: "silver" },
+    { name: "Phoenix Ashes", category: "quest", effect: {}, cost: 55, costType: "silver" },
+    { name: "Timeless Hourglass", category: "quest", effect: {}, cost: 60, costType: "silver" },
+    { name: "Dimensional Key", category: "quest", effect: {}, cost: 65, costType: "silver" },
+    // Defense items
+    { name: "Defense Elixir", category: "consumable", effect: { type: "increaseDefense", amount: 2 }, cost: 25, costType: "bronze" },
+    { name: "Mighty Defense Elixir", category: "consumable", effect: { type: "increaseDefensePercentage", amount: 10 }, cost: 1, costType: "silver" },
+    { name: "Health Boost Potion", category: "consumable", effect: { type: "increaseHealth", amount: 10 }, cost: 30, costType: "bronze" },
+    { name: "Vitality Health Potion", category: "consumable", effect: { type: "increaseHealthPercentage", amount: 10 }, cost: 1, costType: "silver" },
+    { name: "Attack Power Serum", category: "consumable", effect: { type: "increaseAttack", amount: 2 }, cost: 35, costType: "bronze" },
+    { name: "Warrior's Attack Serum", category: "consumable", effect: { type: "increaseAttackPercentage", amount: 10 }, cost: 2, costType: "silver" },
+    // Wand-related
+    { name: "Magic Essence", category: "spellRestore", effect: {}, cost: 2, costType: "gold" }
+];
+function findRandomItem() {
+    const randomItem = items[Math.floor(Math.random() * items.length)];
+    inventory.push(randomItem.name);
+    document.getElementById("text").textContent = "You found a " + randomItem.name + ".";
+    updateButtons(["Return to Town Square"], [() => changeLocation('townsquare')]);
+}
+function useItem(itemName) {
+    const item = items.find(i => i.name === itemName);
+    if (item && item.category === 'consumable') {
+        let healthRestored = 0;
+        switch (item.effect.type) {
+            case 'restoreHealth':
+                healthRestored = item.effect.amount;
+                playerHealth = Math.min(maxHealthForLevel(level), playerHealth + healthRestored);
+                break;
+            case 'restoreHealthPercentage':
+                const maxHealth = maxHealthForLevel(level);
+                healthRestored = Math.floor(maxHealth * (item.effect.amount / 100));
+                playerHealth = Math.min(maxHealth, playerHealth + healthRestored);
+                effectResult = `Player health increased to ${playerHealth}`;
+                break;
+            case 'increaseDefense':
+                playerDefense += item.effect.amount;
+                effectResult = `Defense increased by ${item.effect.amount}`;
+                break;
+            case 'increaseDefensePercentage':
+                playerDefense += Math.ceil(playerDefense * (item.effect.amount / 100));
+                effectResult = `Defense increased by ${item.effect.amount}%`;
+                break;
+            case 'increaseHealth':
+                playerHealth += item.effect.amount;
+                effectResult = `Health increased by ${item.effect.amount}`;
+                break;
+            case 'increaseHealthPercentage':
+                playerHealth += Math.ceil(baseHealth * (item.effect.amount / 100));
+                effectResult = `Health increased by ${item.effect.amount}%`;
+                break;
+            case 'increaseAttack':
+                playerAttackPower += item.effect.amount;
+                effectResult = `Attack Power increased by ${item.effect.amount}`;
+                break;
+            case 'increaseAttackPercentage':
+                playerAttackPower += Math.ceil(playerAttackPower * (item.effect.amount / 100));
+                effectResult = `Attack Power increased by ${item.effect.amount}%`;
+                break;
+            
+        }
+        inventory = inventory.filter(i => i !== itemName);
+        updateStats();
+        displayInventory();
+        document.getElementById("text").textContent = `You used a ${itemName}. ${effectResult}.`;
+    }
+    else if (item.category === 'spellRestore') {
+            spellCount = 10;
+            document.getElementById("text").textContent = `You used a ${itemName}. Your spells have been restored.`;
+    }
+}
+
+//INVENTORY
+function displayInventory() {
+    const textElement = document.getElementById('text');
+    textElement.innerHTML = '';
+    textElement.style.display = 'flex';
+    textElement.style.justifyContent = 'space-between';
+    textElement.style.alignItems = 'flex-start';
+
+    const inventoryDiv = document.createElement('div');
+    inventoryDiv.style.flex = '1';
+    inventoryDiv.style.overflowY = 'auto';
+    inventoryDiv.style.maxHeight = '300px';
+
+    const playerStatsDiv = document.createElement('div');
+    playerStatsDiv.style.flex = '1'; 
+
+    
+    playerStatsDiv.style.flex = '1'; 
+    if (inventory.includes(wand.name)) {
+        playerStatsDiv.innerHTML = `
+        <h3>Player Stats</h3>
+        <p>Level: ${level}</p>
+        <p>Health: ${playerHealth}</p>
+        <p>Attack: ${playerAttackPower}</p>
+        <p>Defense: ${playerDefense}</p>
+        <p>Wand Level: ${wand.level}</p>
+        `;
+    } else{
+        playerStatsDiv.innerHTML = `
+        <h3>Player Stats</h3>
+        <p>Level: ${level}</p>
+        <p>Health: ${playerHealth}</p>
+        <p>Attack: ${playerAttackPower}</p>
+        <p>Defense: ${playerDefense}</p>
+        `;
+    }
+    inventoryDiv.style.flex = '1';
+    inventoryDiv.style.overflowY = 'auto';
+    inventoryDiv.style.maxHeight = '300px';
+    const inventoryTitle = document.createElement('h3');
+    inventoryTitle.textContent = 'My Items';
+    inventoryDiv.appendChild(inventoryTitle);
+    const inventoryList = document.createElement('ul');
+    inventoryList.style.listStyleType = 'none';
+    const tally = {};
+    inventory.forEach(item => {
+        tally[item] = (tally[item] || 0) + 1;
+    });
+    Object.entries(tally).forEach(([item, count]) => {
+        const listItem = document.createElement('li');
+        listItem.style.display = 'flex';
+        listItem.style.alignItems = 'center';
+        listItem.style.marginBottom = '5px';
+        const squareIndicator = document.createElement('div');
+        squareIndicator.style.width = '20px';
+        squareIndicator.style.height = '20px';
+        squareIndicator.style.backgroundColor = 'green';
+        squareIndicator.style.borderRadius = '2px';
+        squareIndicator.style.marginRight = '10px';
+        squareIndicator.style.display = 'flex';
+        squareIndicator.style.justifyContent = 'center';
+        squareIndicator.style.alignItems = 'center';
+        squareIndicator.style.color = 'white';
+        squareIndicator.textContent = count;
+        listItem.appendChild(squareIndicator);
+        const itemText = document.createElement('span');
+        itemText.textContent = item;
+        listItem.appendChild(itemText);
+
+        const itemDetails = items.find(i => i.name === item);
+        if (itemDetails) {
+            itemText.className = 'tooltip';
+            const tooltipText = document.createElement('span');
+            tooltipText.className = 'tooltiptext';
+            let effectText = '';
+            switch (itemDetails.category) {
+                case 'consumable':
+                    effectText = getConsumableEffectText(itemDetails.effect);
+                    break;
+                case 'quest':
+                    effectText = 'Quest item';
+                    break;
+            }
+            tooltipText.textContent = effectText;
+            itemText.appendChild(tooltipText);
+            if (itemDetails.category === 'consumable') {
+                const useText = document.createElement('span');
+                useText.textContent = ' (use)';
+                useText.style.cursor = 'pointer';
+                useText.style.color = 'white';
+                useText.onclick = () => useItem(item);
+                listItem.appendChild(useText);
+            }
+            if (itemDetails.category === 'spellRestore') {
+                const useText = document.createElement('span');
+                useText.textContent = ' (use)';
+                useText.style.cursor = 'pointer';
+                useText.style.color = 'white';
+                useText.onclick = () => useItem(item);
+                listItem.appendChild(useText);
+            }
+        }
+        const weapon = weapons.find(w => w.name === item);
+        if (weapon) {
+            itemText.className += ' tooltip'; // Add tooltip class
+            const weaponTooltip = document.createElement('span');
+            weaponTooltip.className = 'tooltiptext';
+            weaponTooltip.textContent = `Attack: ${weapon.baseAttack}, Defense: ${weapon.baseDefenseBonus}, Health: ${weapon.baseHealthBonus}`;
+            itemText.appendChild(weaponTooltip);
+
+            const equipText = document.createElement('span');
+            equipText.style.cursor = 'pointer';
+            equipText.textContent = equippedWeapon && equippedWeapon.name === item ? ' (unequip)' : ' (equip)';
+            equipText.onclick = () => toggleWeapon(item);
+            listItem.appendChild(equipText);
+        }
+        inventoryList.appendChild(listItem);
+        inventoryList.appendChild(listItem);
+    });
+    inventoryDiv.appendChild(inventoryList);
+    textElement.appendChild(playerStatsDiv);
+    textElement.appendChild(inventoryDiv);
+}
+function updateEquippedWeaponDisplay() {
+    const equippedWeaponName = equippedWeapon ? equippedWeapon.name : 'None';
+    document.getElementById("equippedWeaponName").textContent = equippedWeaponName;
+}
+function toggleWeapon(weaponName) {
+    let weapon = weapons.find(w => w.name === weaponName);
+    if (!weapon) {
+        console.error("Weapon not found:", weaponName);
+        return;
+    }
+    if (equippedWeapon) {
+        playerAttackPower -= equippedWeapon.attack || 0;
+        playerDefense -= equippedWeapon.defenseBonus || 0;
+        playerHealth -= equippedWeapon.healthBonus || 0;
+    }
+    if (!equippedWeapon || equippedWeapon.name !== weaponName) {
+        equippedWeapon = scaleWeaponAttributes(weapon, level); // Ensure to use the scaled attributes
+        playerAttackPower += equippedWeapon.attack;
+        playerDefense += equippedWeapon.defenseBonus;
+        playerHealth += equippedWeapon.healthBonus;
+    } else {
+        equippedWeapon = null;
+    }
+    displayInventory();
+    updateStats();
+}
+function getConsumableEffectText(effect) {
+    switch (effect.type) {
+        case 'restoreHealth':
+            return `Restores ${effect.amount} health`;
+        case 'restoreHealthPercentage':
+            return `Restores ${effect.amount}% health`;
+        case 'increaseDefense':
+            return `Increases defense by ${effect.amount}`;
+        case 'increaseDefensePercentage':
+            return `Increases defense by ${effect.amount}%`;
+        case 'increaseHealth':
+            return `Increases health by ${effect.amount}`;
+        case 'increaseHealthPercentage':
+            return `Increases health by ${effect.amount}%`;
+        case 'increaseAttack':
+            return `Increases attack by ${effect.amount}`;
+        case 'increaseAttackPercentage':
+            return `Increases attack by ${effect.amount}%`;
+    }
+}
+
+//ENEMIES
+const enemies = [
+    { name: "Lesser Imp", baseLevel: 1, baseHealth: 20, baseAttack: 5, baseDefense: 3, scalingFactor: 1.1, encounterRate: 0.05, regularAttack: "Fiery Swipe", specialAttack: "Inferno Blast" },
+    { name: "Greater Imp", baseLevel: 3, baseHealth: 40, baseAttack: 10, baseDefense: 5, scalingFactor: 1.2, encounterRate: 0.05, regularAttack: "Impish Jab", specialAttack: "Hellfire" },
+    { name: "Cornish Pixie", baseLevel: 2, baseHealth: 25, baseAttack: 7, baseDefense: 4, scalingFactor: 1.15, encounterRate: 0.05, regularAttack: "Pixie Prank", specialAttack: "Mischief Storm" },
+    { name: "Grindylow", baseLevel: 2, baseHealth: 30, baseAttack: 6, baseDefense: 4, scalingFactor: 1.1, encounterRate: 0.05, regularAttack: "Watery Grip", specialAttack: "Abyssal Whirl" },
+    { name: "Blast-Ended Skrewt", baseLevel: 4, baseHealth: 50, baseAttack: 12, baseDefense: 6, scalingFactor: 1.2, encounterRate: 0.04, regularAttack: "Fiery Backlash", specialAttack: "Explosive Rage" },
+    { name: "Acromantula", baseLevel: 5, baseHealth: 60, baseAttack: 15, baseDefense: 7, scalingFactor: 1.25, encounterRate: 0.03, regularAttack: "Venomous Bite", specialAttack: "Web Entanglement" },
+    { name: "Basilisk", baseLevel: 6, baseHealth: 70, baseAttack: 18, baseDefense: 8, scalingFactor: 1.3, encounterRate: 0.02, regularAttack: "Petrifying Gaze", specialAttack: "Deadly Glare" },
+    { name: "Hungarian Horntail", baseLevel: 7, baseHealth: 80, baseAttack: 20, baseDefense: 10, scalingFactor: 1.35, encounterRate: 0.02, regularAttack: "Dragon Claw", specialAttack: "Fire Breath" },
+    { name: "Mountain Troll", baseLevel: 4, baseHealth: 55, baseAttack: 14, baseDefense: 6, scalingFactor: 1.2, encounterRate: 0.04, regularAttack: "Troll Smash", specialAttack: "Boulder Throw" },
+    { name: "Werewolf", baseLevel: 5, baseHealth: 65, baseAttack: 16, baseDefense: 7, scalingFactor: 1.25, encounterRate: 0.03, regularAttack: "Lunar Bite", specialAttack: "Feral Lunge" },
+    { name: "Dementor", baseLevel: 8, baseHealth: 90, baseAttack: 22, baseDefense: 11, scalingFactor: 1.4, encounterRate: 0.015, regularAttack: "Chill Touch", specialAttack: "Soul Drain" },
+    { name: "Thestral", baseLevel: 3, baseHealth: 35, baseAttack: 9, baseDefense: 5, scalingFactor: 1.15, encounterRate: 0.05, regularAttack: "Shadow Strike", specialAttack: "Invisible Charge" },
+    { name: "Giant Spider", baseLevel: 2, baseHealth: 28, baseAttack: 8, baseDefense: 4, scalingFactor: 1.1, encounterRate: 0.05, regularAttack: "Creepy Crawl", specialAttack: "Silk Trap" },
+    { name: "Goblin", baseLevel: 1, baseHealth: 22, baseAttack: 6, baseDefense: 3, scalingFactor: 1.05, encounterRate: 0.06, regularAttack: "Goblin Poke", specialAttack: "Sneaky Stab" },
+    { name: "Hippogriff", baseLevel: 4, baseHealth: 50, baseAttack: 13, baseDefense: 6, scalingFactor: 1.2, encounterRate: 0.04, regularAttack: "Winged Assault", specialAttack: "Majestic Dive" },
+    { name: "Death Eater", baseLevel: 6, baseHealth: 70, baseAttack: 17, baseDefense: 8, scalingFactor: 1.3, encounterRate: 0.025, regularAttack: "Dark Curse", specialAttack: "Fiendfyre" },
+    { name: "Inferius", baseLevel: 5, baseHealth: 60, baseAttack: 14, baseDefense: 7, scalingFactor: 1.25, encounterRate: 0.03, regularAttack: "Lifeless Claw", specialAttack: "Undead Grasp" },
+    { name: "Nagini", baseLevel: 7, baseHealth: 75, baseAttack: 19, baseDefense: 9, scalingFactor: 1.35, encounterRate: 0.02, regularAttack: "Venomous Strike", specialAttack: "Constrictor Wrap" },
+    { name: "Poltergeist", baseLevel: 3, baseHealth: 30, baseAttack: 10, baseDefense: 5, scalingFactor: 1.1, encounterRate: 0.05, regularAttack: "Mischievous Throw", specialAttack: "Haunting Howl" },
+    { name: "Lord Voldemort", baseLevel: 10, baseHealth: 100, baseAttack: 25, baseDefense: 15, scalingFactor: 1.5, encounterRate: 0.005, regularAttack: "Dark Spell", specialAttack: "Avada Kedavra" }
+];
+function scaleEnemyStats(enemy, playerLevel) {
+    let scaleMultiplier = Math.pow(enemy.scalingFactor, playerLevel - enemy.baseLevel);
+    let scaledHealth = Math.round(enemy.baseHealth * scaleMultiplier);
+    let scaledAttack = Math.round(enemy.baseAttack * scaleMultiplier);
+    let scaledDefense = Math.round(enemy.baseDefense * scaleMultiplier);
+
+    return {
+        name: enemy.name,
+        level: playerLevel,
+        health: scaledHealth,
+        attack: scaledAttack,
+        defense: scaledDefense
+    };
+}
+
+//INITIAL GAME VARIABLES
+function initGame() {
+  if (localStorage.getItem('gameState')) {
+    return;
+  }
+  level = 1;
+  xp = 0;
+  playerHealth = 55;
+  playerAttackPower = 10;
+  playerDefense = 5;
+  spellCount = 10;
+  knuts = 50;
+  sickles = 0;
+  galleons = 0;
+  wand = { name: "Basic Wand", level: 1 };
+  currentQuest = null;
+  assignNewQuest();
+  inventory = [];
+  let defaultWeapon = findWeapon("Goblin-Made Dagger", level);
+    if (defaultWeapon) {
+        equippedWeapon = defaultWeapon;
+        inventory.push(defaultWeapon.name);
+    } else {
+        equippedWeapon = null;
+    }
+    const initialQuestItem = items[Math.floor(Math.random() * items.length)].name;
+    const requiredAmount = Math.floor(Math.random() * 5) + 1;
+    for (let i = 0; i < requiredAmount; i++) {
+        inventory.push(initialQuestItem);
+    }
+  currentLocation = locations[0];
+
+    updateStats();
+    updateLocation();
+}
+function updateButtons(buttonTexts, buttonFunctions, buttonLevelRequirements) {
+    const controlsDiv = document.getElementById("controls");
+    controlsDiv.innerHTML = ""; // Clear existing buttons
+
+    buttonTexts.forEach((text, index) => {
+        const button = document.createElement("button");
+        button.textContent = text;
+
+        if (buttonLevelRequirements && buttonLevelRequirements[index] && level < buttonLevelRequirements[index]) {
+            button.textContent += ` (REQ LVL ${buttonLevelRequirements[index]})`; // Include required level in text
+            button.className = 'tooltip'; // Add tooltip class
+            const tooltipText = document.createElement('span');
+            tooltipText.className = 'tooltiptext';
+            tooltipText.textContent = `Unlocks at Level ${buttonLevelRequirements[index]}`;
+            button.appendChild(tooltipText);
+            button.disabled = true; // Disable the button
+        } else {
+            button.addEventListener('click', buttonFunctions[index]);
+        }
+
+        controlsDiv.appendChild(button);
+    });
+}
+window.onload = function() {
+    loadGame();
+    initGame(); 
+};
+
+//UPDATE STATS ON HTML
+function updateStats() {
+    document.getElementById("level").textContent = level;
+    document.getElementById("knuts").textContent = knuts;
+    document.getElementById("sickles").textContent = sickles;
+    document.getElementById("galleons").textContent = galleons;
+    let attackBonus = equippedWeapon ? equippedWeapon.baseAttack : 0;
+    let defenseBonus = equippedWeapon ? equippedWeapon.baseDefenseBonus : 0;
+    let healthBonus = equippedWeapon ? equippedWeapon.baseHealthBonus : 0;
+    updateLevelProgress(xp, xpThresholdForLevel(level));
+    updateHealthBar(playerHealth, maxHealthForLevel(level)); 
+    saveGame();
+}
+
+//LEVEL SYSTEM
+function levelUp() {
+    if (xp >= xpThresholdForLevel(level)) {
+        level++;
+        playerAttackPower += 2;
+        playerDefense += 1; 
+        playerHealth += 10;
+        playerHealth = Math.min(playerHealth, maxHealthForLevel(level));
+        document.getElementById("text").textContent = "Congratulations! You've reached level " + level + "!\n" + "Health increased to " + playerHealth + ", " + "Attack Power increased to " + playerAttackPower + ", " + "Defense increased to " + playerDefense + ".";
+        xp = 0;
+        spellCount = 10;
+        updateStats();
+    }
+}
+function xpThresholdForLevel(lvl) {
+    return 100 * lvl;
+}
+function calculateXPGain(enemyLevel) {
+    let baseXP = 20;
+    let randomFactor = Math.random() * 10 + 5;
+    let scalingFactor = 1.2;
+    let levelDifference = enemyLevel - level;
+
+    let xpGain = Math.round((baseXP + randomFactor) * Math.pow(scalingFactor, levelDifference));
+    return xpGain > 0 ? xpGain : 1;
+}
+function updateLevelProgress(xp, xpNeeded) {
+    const percentage = (xp / xpNeeded) * 100;
+    document.getElementById('circle-progress-bar-fill').style.setProperty('--progress', percentage + '%');
+}
+function updateHealthBar(currentHealth, maxHealth) {
+    const healthPercentage = (currentHealth / maxHealth) * 100;
+    document.getElementById('health-bar').style.width = `${healthPercentage}%`;
+    document.getElementById('health-text').textContent = `${currentHealth}/${maxHealth}`;
+}
+
+//MONEY
+function findRandomMoney() {
+    const moneyFound = Math.floor(Math.random() * 100);
+    knuts += moneyFound;
+    updateCurrency(); 
+    document.getElementById("text").textContent = "You found " + moneyFound + " Knuts.";
+    updateButtons(["Return to Town Square"], [() => changeLocation('townsquare')]);
+}
+function updateCurrency() {
+    // Convert Knuts to Sickles and Galleons
+    while (knuts >= 29) {
+        knuts -= 29;
+        sickles += 1;
+    }
+    while (sickles >= 17) {
+        sickles -= 17;
+        galleons += 1;
+    }
+    document.getElementById("knuts").textContent = knuts;
+    document.getElementById("sickles").textContent = sickles;
+    document.getElementById("galleons").textContent = galleons;
+}
+
+//BATTLE
+function updateBattleText(newText) {
+    const textElement = document.getElementById("text");
+    textElement.innerHTML = newText + "<br>";
+}
+function startBattle() {
+    console.log("Starting battle...");
+    document.getElementById("text").innerHTML = "";
+    let totalEncounterRate = enemies.reduce((total, enemy) => total + enemy.encounterRate, 0);
+    let randomEncounterValue = Math.random() * totalEncounterRate;
+    let cumulativeRate = 0;
+    for (let enemy of enemies) {
+        cumulativeRate += enemy.encounterRate;
+        if (randomEncounterValue <= cumulativeRate) {
+            currentEnemy = scaleEnemyStats(enemy, level);
+            currentEnemy.regularAttack = enemy.regularAttack;
+            currentEnemy.specialAttack = enemy.specialAttack;
+            break;
+        }
+    }
+    enemyHealth = currentEnemy.health;
+    updateBattleUI(currentEnemy);
+}
+function playerAttack() {
+    console.log("Player attack triggered");
+    const playerDamage = calculatePlayerDamage();
+    enemyHealth -= playerDamage;
+    let equippedWeaponName = equippedWeapon ? equippedWeapon.name : "your fists";
+    let battleText = `You used ${equippedWeaponName}. You hit the ${currentEnemy.name} with ${playerDamage} damage.`;
+  if (enemyHealth <= 0) {
+    victory(battleText);
+  } else {
+    enemyAttack(battleText);
+  }
+  updateStats();
+}
+function enemyAttack(previousBattleText = "") {
+    let { damage, attackText } = calculateEnemyDamage();
+    playerHealth -= damage;
+    let battleText = previousBattleText + `${attackText} Enemy Health: ${enemyHealth}. Your Health: ${playerHealth}<br>`;
+    if (playerHealth <= 0) {
+        defeat(battleText);
+    } else {
+        updateBattleText(battleText);
+    }
+    return battleText;
+}
+function flee() {
+    const fleeSuccess = Math.random() < 0.5;
+    let fleeText = "You couldn't get away. ";
+    if (fleeSuccess) {
+        document.getElementById("text").textContent = "You successfully fled!";
+        updateStats();
+        updateButtons(["Return to Town Square"], [() => changeLocation('townsquare')]);
+    } else {
+        let battleText = enemyAttack(fleeText);
+        document.getElementById("text").innerHTML = battleText;
+    }
+    updateStats();
+}
+function victory() { 
+    let xpGain = calculateXPGain(currentEnemy.level);
+    xp += xpGain;
+    updateBattleText("You defeated the " + currentEnemy.name + " and gained " + xpGain + " XP!");
+    levelUp();
+    updateStats() 
+    updateButtons(["Return to Town Square"], [() => changeLocation('townsquare')]);
+}
+function defeat() {
+    updateStats() 
+    updateBattleText("You have been defeated and taken to the Hospital Wing for recovery.");
+    updateButtons(["Go to Hospital"], [() => goToHospital()]);
+}
+function updateBattleUI(enemy) {
+    document.getElementById("text").textContent += "You are battling a " + enemy.name + ". Enemy Health: " + enemyHealth + ". Your Health: " + playerHealth + "\n";
+    const battleOptionsText = ["Attack", "Flee"];
+    const battleOptionsFunctions = [() => playerAttack(), () => flee()]; 
+    if (inventory.includes(wand.name)) {
+        battleOptionsText.unshift(`Magic Attack (${spellCount}/10)`);
+        battleOptionsFunctions.unshift(() => magicAttack());
+    }
+    updateButtons(battleOptionsText, battleOptionsFunctions);
+}
+function magicAttack() {
+    if (spellCount <= 0) {
+        document.getElementById("text").textContent = "\nYou have no more spells left to cast. You earn more by leveling up, items or when you visit the hospital.";
+        return;
+    }
+    spellCount--;
+    let magicDamage = calculateMagicDamage();
+    enemyHealth -= magicDamage;
+    let battleText = `You cast a spell with your wand. You inflicted ${magicDamage} magic damage on the ${currentEnemy.name}.`;
+    if (enemyHealth <= 0) {
+        victory(battleText);
+    } else {
+        enemyAttack(battleText);
+    }
+    updateStats();
+}
+function calculateMagicDamage() {
+    const baseMagicDamage = 8;
+    const wandLevelMultiplier = 1.5;
+    let magicDamage = baseMagicDamage + (wand.level * wandLevelMultiplier);
+    let isCriticalHit = Math.random() < 0.15;
+    if (isCriticalHit) {
+        magicDamage *= 2;
+    }
+    return Math.max(magicDamage, 0);
+}
+function calculatePlayerDamage() {
+    let damage;
+    let isCriticalHit = false;
+    let isMiss = Math.random() < 0.1;
+    if (equippedWeapon) {
+        isCriticalHit = Math.random() < equippedWeapon.criticalHitChance; 
+        let randomFactor = Math.floor(Math.random() * 5);
+        let weaponAttack = equippedWeapon.baseAttack || 0;
+        let totalAttackPower = playerAttackPower + weaponAttack;
+        let defenseImpact = currentEnemy.defense * 0.75; 
+        damage = totalAttackPower + randomFactor - currentEnemy.defense;
+        if (isCriticalHit) {
+            damage *= 2;
+        }
+    } else {
+        damage = playerAttackPower - currentEnemy.defense;
+    }
+    if (isMiss) {
+        damage = 0;
+    }
+    return Math.max(damage, 0);
+}
+function calculateEnemyDamage() {
+    let criticalHitChance = 0.1;
+    let specialAttackChance = 0.1;
+    let isCriticalHit = Math.random() < criticalHitChance;
+    let isSpecialAttack = Math.random() < specialAttackChance;
+    let randomFactor = Math.floor(Math.random() * 5);
+    let damage = currentEnemy.attack + randomFactor - playerDefense;
+    let attackText;
+    if (isSpecialAttack) {
+        damage *= 1.5;
+        attackText = `The enemy used their special attack "${currentEnemy.specialAttack}"!`;
+    } else if (isCriticalHit) {
+        damage *= 2;
+        attackText = `The enemy landed a critical hit!`;
+    } else {
+        attackText = `The enemy used ${currentEnemy.regularAttack}.`;
+    }
+    return { damage: Math.max(damage, 0), attackText };
+}
+
+//HOSPITAL
+function goToHospital() {
+    const healthToRestore = Math.round(0.8 * maxHealthForLevel(level));
+    spellCount = 10;
+    playerHealth += healthToRestore;
+    playerHealth = Math.min(playerHealth, maxHealthForLevel(level));
+    currentLocation = locations.find(loc => loc.id === 'hospitalWing');
+    if (!currentLocation) {
+        console.error("Hospital location not found");
+        return;
+    }
+    updateLocation();
+    updateStats();
+    document.getElementById("text").textContent = "You have been healed at the Hospital Wing. Your health is now " + playerHealth + ".";
+}
+function maxHealthForLevel(level) {
+    const baseHealth = 50;
+    const healthIncreasePerLevel = 10;
+    let maxHealth = baseHealth + (level - 1) * healthIncreasePerLevel;
+    if (equippedWeapon && equippedWeapon.healthBonus) {
+        maxHealth += equippedWeapon.healthBonus;
+    }
+    return maxHealth;
+}
+
+//Diagon Alley
+function displayDiagonAlley() {
+    const textElement = document.getElementById("text");
+    textElement.innerHTML = "Welcome to Diagon Alley! Here's what's available for purchase:<br>";
+    const shuffledItems = items.sort(() => 0.5 - Math.random()).slice(0, 6);
+    const shuffledWeapons = weapons.filter(weapon => weapon.minLevel <= level).sort(() => 0.5 - Math.random()).slice(0, 6);
+    shuffledItems.forEach(item => {
+        const itemDiv = document.createElement("div");
+        itemDiv.className = "item-for-sale tooltip";
+        itemDiv.style.display = "block";
+        itemDiv.innerHTML = `
+            <span class="item-name">${item.name}</span>
+            <span class="item-cost"><div class="coin ${item.costType} tooltip"></div>${item.cost}</span>
+            <button onclick="purchaseItem('${item.name}', ${item.cost}, '${item.costType}')">Buy</button>
+            <span class="tooltiptext">${getItemTooltipText(item)}</span>
+        `;
+        textElement.appendChild(itemDiv);
+    });
+    shuffledWeapons.forEach(weapon => {
+        const weaponDiv = document.createElement("div");
+        weaponDiv.className = "weapon-for-sale tooltip";
+        weaponDiv.style.display = "block";
+        weaponDiv.innerHTML = `
+            <span class="weapon-name">${weapon.name}</span>
+            <span class="weapon-cost"><div class="coin ${weapon.costType} tooltip"></div>${weapon.cost}</span>
+            <button onclick="purchaseWeapon('${weapon.name}', ${weapon.cost}, '${weapon.costType}')">Buy</button>
+            <span class="tooltiptext">${getWeaponTooltipText(weapon)}</span>
+        `;
+        textElement.appendChild(weaponDiv);
+    });
+    updateButtons(["Return to Town Square"], [() => changeLocation('townsquare')]);
+}
+function getItemTooltipText(item) {
+  let tooltipText = "";
+
+  switch (item.category) {
+    case "consumable":
+      tooltipText = `Effect: ${item.effect.type}, Amount: ${item.effect.amount}`;
+      break;
+    case "quest":
+      tooltipText = `Quest Item: ${item.name}`;
+      break;
+    default:
+      tooltipText = `Item: ${item.name}`;
+  }
+
+  return tooltipText;
+}
+function getWeaponTooltipText(weapon) {
+    return `Attack: ${weapon.baseAttack}, Defense: ${weapon.baseDefenseBonus}, Health: ${weapon.baseHealthBonus}`;
+}
+function purchaseItem(itemName, cost, costType) {
+  if (subtractCurrency(cost, costType)) {
+    inventory.push(itemName);
+    updateStats();
+    document.getElementById("text").textContent = `You purchased ${itemName} for ${cost} ${costType}.`;
+  } else {
+    document.getElementById("text").textContent = "You do not have enough currency to make this purchase.";
+  }
+}
+function purchaseWeapon(weaponName, cost, costType) {
+  if (subtractCurrency(cost, costType)) {
+    inventory.push(weaponName);
+    updateStats();
+    document.getElementById("text").textContent = `You purchased ${weaponName} for ${cost} ${costType}.`;
+  } else {
+    document.getElementById("text").textContent = "You do not have enough currency to make this purchase.";
+  }
+}
+function subtractCurrency(amount, type) {
+    // Conversion rates
+    const sicklesPerGalleon = 17;
+    const knutsPerSickle = 29;
+
+    switch(type) {
+        case 'bronze': 
+            // Calculate total knuts in possession
+            const totalKnuts = knuts + (sickles * knutsPerSickle) + (galleons * sicklesPerGalleon * knutsPerSickle);
+            if (totalKnuts >= amount) {
+                // Subtract amount and update other currencies
+                let remaining = totalKnuts - amount;
+                galleons = Math.floor(remaining / (sicklesPerGalleon * knutsPerSickle));
+                remaining %= (sicklesPerGalleon * knutsPerSickle);
+                sickles = Math.floor(remaining / knutsPerSickle);
+                knuts = remaining % knutsPerSickle;
+                return true;
+            }
+            break;
+        case 'silver': 
+            // Calculate total sickles in possession
+            const totalSickles = sickles + (galleons * sicklesPerGalleon);
+            if (totalSickles >= amount) {
+                // Subtract amount and update other currencies
+                let remaining = totalSickles - amount;
+                galleons = Math.floor(remaining / sicklesPerGalleon);
+                sickles = remaining % sicklesPerGalleon;
+                return true;
+            }
+            break;
+        case 'gold': 
+            if (galleons >= amount) {
+                galleons -= amount;
+                return true;
+            }
+            break;
+    }
+    return false;
+}
+
+//Quidditch Game
+function startQuidditchGame() {
+    const textDiv = document.getElementById("text");
+    textDiv.innerHTML = "";
+    let gameActive = true;
+    let canvas = document.createElement("canvas");
+    canvas.id = "quidditchCanvas";
+    canvas.width = textDiv.clientWidth;
+    canvas.height = textDiv.clientHeight;
+    textDiv.appendChild(canvas);
+    const ctx = canvas.getContext('2d');
+    const playerSize = 50;
+    let playerX = canvas.width / 4 - playerSize / 2;
+    let playerY = canvas.height / 2 - playerSize / 2;
+    let playerSpeed = { x: 0, y: 0 };
+    let opponentX = 3 * canvas.width / 4 - playerSize / 2;
+    let opponentY = canvas.height / 2 - playerSize / 2;
+    let opponentSpeed = 2;
+    const snitchSize = 10;
+    let snitchX = canvas.width / 2 - snitchSize / 2;
+    let snitchY = canvas.height / 2 - snitchSize / 2;
+    let snitchSpeedX = 2;
+    let snitchSpeedY = 2;
+    let targetX = playerX;
+    let targetY = playerY;
+    const moveSpeed = 2;
+    canvas.addEventListener('click', function(event) {
+        targetX = event.clientX - canvas.getBoundingClientRect().left;
+        targetY = event.clientY - canvas.getBoundingClientRect().top;
+    });
+    const playerHouse = getCurrentHouse();
+    const opponentHouse = getRandomHouse(playerHouse); 
+    function drawBroomstick(x, y, targetX, targetY, house) {
+        const angle = Math.atan2(targetY - y, targetX - x);
+        ctx.save();
+        ctx.translate(x + playerSize / 2, y + 5);
+        ctx.rotate(angle);
+        let broomColor, bristleColor;
+    switch(house) {
+        case 'gryffindor':
+            broomColor = '#740001';
+            bristleColor = '#DAA520';
+            break;
+        case 'slytherin':
+            broomColor = '#2A623D';
+            bristleColor = '#C0C0C0';
+            break;
+        case 'ravenclaw':
+            broomColor = '#0E1A40';
+            bristleColor = '#946B2D';
+            break;
+        case 'hufflepuff':
+            broomColor = '#FFF4B1';
+            bristleColor = '#000000';
+            break;
+        default:
+            broomColor = 'black';
+            bristleColor = 'brown';
+    }
+        ctx.fillStyle = broomColor;
+        ctx.beginPath();
+        ctx.rect(-playerSize / 2, -5, playerSize, 10);
+        ctx.fill();
+        ctx.strokeStyle = bristleColor;
+        ctx.beginPath();
+        for (let i = 0; i < 15; i++) {
+        ctx.moveTo(playerSize / 2, -5 + i);
+        ctx.lineTo(playerSize / 2 + 15, -10 + i);
+    }
+    ctx.stroke();
+    ctx.restore();
+    }
+    function drawSnitch(x, y) {
+        ctx.beginPath();
+        ctx.arc(x, y, snitchSize / 2, 0, 2 * Math.PI);
+        ctx.fillStyle = 'yellow';
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(x - snitchSize, y);
+        ctx.quadraticCurveTo(x - 2 * snitchSize, y - snitchSize, x - snitchSize, y + snitchSize / 2);
+        ctx.quadraticCurveTo(x - snitchSize, y + snitchSize, x - snitchSize / 2, y);
+        ctx.fillStyle = 'white';
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(x + snitchSize, y);
+        ctx.quadraticCurveTo(x + 2 * snitchSize, y - snitchSize, x + snitchSize, y + snitchSize / 2);
+        ctx.quadraticCurveTo(x + snitchSize, y + snitchSize, x + snitchSize / 2, y);
+        ctx.fillStyle = 'white';
+        ctx.fill();
+    }
+    function drawGame() {
+        if (!gameActive) return;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawBroomstick(playerX, playerY, targetX, targetY, playerHouse);
+        drawBroomstick(opponentX, opponentY, snitchX, snitchY, opponentHouse);
+        drawSnitch(snitchX, snitchY);
+        movePlayer();
+        moveOpponent();
+        moveSnitch();
+        checkCollision();
+        requestAnimationFrame(drawGame);
+    }
+    function movePlayer() {
+        if (Math.abs(targetX - playerX) > moveSpeed || Math.abs(targetY - playerY) > moveSpeed) {
+            playerSpeed.x = targetX > playerX ? moveSpeed : (targetX < playerX ? -moveSpeed : 0);
+            playerSpeed.y = targetY > playerY ? moveSpeed : (targetY < playerY ? -moveSpeed : 0);
+        } else {
+            playerSpeed.x = 0;
+            playerSpeed.y = 0;
+        }
+        playerX += playerSpeed.x;
+        playerY += playerSpeed.y;
+    }
+    function moveOpponent() {
+        let dx = snitchX - opponentX;
+        let dy = snitchY - opponentY;
+        let distance = Math.sqrt(dx * dx + dy * dy);
+        if (distance > 1) {
+            dx = dx / distance;
+            dy = dy / distance;
+            opponentX += dx * opponentSpeed;
+            opponentY += dy * opponentSpeed;
+        }
+    }
+    function moveSnitch() {
+        let dxPlayer = snitchX - playerX;
+        let dyPlayer = snitchY - playerY;
+        let dxOpponent = snitchX - opponentX;
+        let dyOpponent = snitchY - opponentY;
+        let distancePlayer = Math.sqrt(dxPlayer * dxPlayer + dyPlayer * dyPlayer);
+        let distanceOpponent = Math.sqrt(dxOpponent * dxOpponent + dyOpponent * dyOpponent);
+        let avoidSpeed = 3;
+        if (distancePlayer < distanceOpponent) {
+            snitchSpeedX += avoidSpeed * (dxPlayer / distancePlayer);
+            snitchSpeedY += avoidSpeed * (dyPlayer / distancePlayer);
+        } else {
+            snitchSpeedX += avoidSpeed * (dxOpponent / distanceOpponent);
+            snitchSpeedY += avoidSpeed * (dyOpponent / distanceOpponent);
+        }
+        if (Math.random() < 0.05) {
+            snitchSpeedX = (Math.random() - 0.5) * 8;
+            snitchSpeedY = (Math.random() - 0.5) * 8;
+        }
+        if (snitchX <= 0 || snitchX >= canvas.width - snitchSize) {
+            snitchSpeedX = -snitchSpeedX;
+        }
+        if (snitchY <= 0 || snitchY >= canvas.height - snitchSize) {
+            snitchSpeedY = -snitchSpeedY;
+        }
+        snitchX += snitchSpeedX;
+        snitchY += snitchSpeedY;
+    }
+    function checkCollision() {
+        if (checkCollisionWithBroomstick(playerX, playerY, snitchX, snitchY)) {
+        endGame("Player Wins!");
+        }
+
+        if (checkCollisionWithBroomstick(opponentX, opponentY, snitchX, snitchY)) {
+        endGame("Opponent Wins!");
+        }
+        }
+    function endGame(message) {
+            gameActive = false;
+            canvas.remove();
+            const rewardsText = message === "Player Wins!" ? "You earned 10 Knuts and a Quidditch Trophy." : "Better luck next time!";
+            textDiv.innerHTML = `<p>${message}</p><p>${rewardsText}</p>`;
+            if (message === "Player Wins!") {
+                knuts += 10;
+                inventory.push("Quidditch Trophy");
+                updateCurrency();
+            }
+        }
+    function checkCollisionWithBroomstick(broomX, broomY, snitchX, snitchY) {
+        const broomstickWidth = 10;
+        const broomstickLength = playerSize + 15;
+        const halfBroomstickWidth = broomstickWidth / 2;
+        return (
+        snitchX >= broomX - halfBroomstickWidth &&
+        snitchX <= broomX + broomstickLength + halfBroomstickWidth &&
+        snitchY >= broomY - halfBroomstickWidth &&
+        snitchY <= broomY + halfBroomstickWidth
+        );
+        }
+    function resetGame() {
+            playerX = canvas.width / 4 - playerSize / 2;
+            playerY = canvas.height / 2 - playerSize / 2;
+            opponentX = 3 * canvas.width / 4 - playerSize / 2;
+            opponentY = canvas.height / 2 - playerSize / 2;
+            snitchX = canvas.width / 2 - snitchSize / 2;
+            snitchY = canvas.height / 2 - snitchSize / 2;
+            snitchSpeedX = 4;
+            snitchSpeedY = 4;
+        }
+    function getCurrentHouse() {
+        const theme = localStorage.getItem("theme") || "ravenclaw";
+        console.log("Current house based on theme:", theme);
+        return theme.toLowerCase();
+    }
+    function getRandomHouse(excludeHouse) {
+        const houses = ["gryffindor", "slytherin", "hufflepuff", "ravenclaw"];
+        const filteredHouses = houses.filter(house => house !== excludeHouse.toLowerCase());
+        const randomIndex = Math.floor(Math.random() * filteredHouses.length);
+        const selectedHouse = filteredHouses[randomIndex];
+        console.log("Random house selected (excluding " + excludeHouse + "):", selectedHouse);
+        return selectedHouse;
+    }
+    document.addEventListener('keydown', (e) => {
+            switch (e.key) {
+                case 'ArrowLeft': playerSpeed.x = -moveSpeed; break;
+                case 'ArrowRight': playerSpeed.x = moveSpeed; break;
+                case 'ArrowUp': playerSpeed.y = -moveSpeed; break;
+                case 'ArrowDown': playerSpeed.y = moveSpeed; break;
+            }
+        });
+    document.addEventListener('keyup', (e) => {
+            if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']. includes(e.key)) {
+                playerSpeed.x = 0;
+                playerSpeed.y = 0;
+            }
+        });
+    drawGame();
+}
+
+//SAVE & LOAD
+function saveGame() {
+    const gameState = {
+        level,
+        xp,
+        playerHealth,
+        playerAttackPower,
+        playerDefense,
+        wand,
+        spellCount,
+        currentQuest,
+        knuts,
+        sickles,
+        galleons,
+        currentLocation: currentLocation.id,
+        inventory,
+        equippedWeapon
+    };
+    localStorage.setItem('gameState', JSON.stringify(gameState));
+    console.log("Saved game state:", gameState); // Log the saved data
+    document.getElementById("text").textContent = "Game Saved Successfully!";
+}
+function loadGame() {
+    const savedState = localStorage.getItem('gameState');
+    if (savedState) {
+        const gameState = JSON.parse(savedState);
+
+        // Directly set each global variable
+        level = gameState.level;
+        xp = gameState.xp;
+        playerHealth = gameState.playerHealth;
+        playerAttackPower = gameState.playerAttackPower;
+        playerDefense = gameState.playerDefense;
+        wand = gameState.wand;
+        spellCount = gameState.spellCount;
+        currentQuest = gameState.currentQuest;
+        knuts = gameState.knuts;
+        sickles = gameState.sickles;
+        galleons = gameState.galleons;
+        currentLocation = locations.find(loc => loc.id === gameState.currentLocation);
+        inventory = gameState.inventory;
+        equippedWeapon = gameState.equippedWeapon;
+
+        updateStats();
+        updateLocation();
+        console.log("Game Loaded");
+    } else {
+        console.log("No saved game found.");
+    }
+}
+
+//GAME STATS
+
+//THEMES
+function changeTheme(theme) {
+  const linkElement = document.getElementById("themeStylesheet");
+  if (linkElement) {
+    if (theme === "ravenclaw") {
+      linkElement.href = "styles/ravenclaw.css";
+    } else if (theme === "gryffindor") {
+      linkElement.href = "styles/gryffindor.css";
+    } else if (theme === "hufflepuff") {
+      linkElement.href = "styles/hufflepuff.css";
+    } else if (theme === "slytherin") {
+      linkElement.href = "styles/slytherin.css";
+    }
+  }
+}
+document.getElementById("themeSelector").addEventListener("change", function () {
+  const selectedTheme = this.value;
+  changeTheme(selectedTheme);
+});
+const savedTheme = localStorage.getItem("theme");
+if (savedTheme) {
+  changeTheme(savedTheme);
+} else {
+  changeTheme("ravenclaw");
+}
+document.addEventListener("DOMContentLoaded", function () {
+  document.getElementById("themeSelector").addEventListener("change", function () {
+    const selectedTheme = this.value;
+    localStorage.setItem("theme", selectedTheme);
+  });
+});
+const hatImage = document.getElementById('hat');
+const themeSelector = document.getElementById('themeSelector');
+const options = Array.from(themeSelector.options);
+let currentIndex = 0;
+hatImage.addEventListener('click', () => {
+    currentIndex = (currentIndex + 1) % options.length;
+    themeSelector.value = options[currentIndex].value;
+    themeSelector.dispatchEvent(new Event('change'));
+});
+</script>

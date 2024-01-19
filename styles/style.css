@@ -1,0 +1,233 @@
+#hat {
+  position: absolute;
+  top: 30%;
+  right: 30px;
+  transform: translateY(-50%);
+  filter: drop-shadow(0 0 5px rgba(255, 215, 0, 0.7));
+  transition: filter 0.3s ease-in-out;
+}
+
+#hat:hover {
+  filter: drop-shadow(0 0 10px rgba(255, 215, 0, 1));
+}
+
+#text, #game {
+  height: calc(100% - 130px);
+  overflow-y: scroll;
+}
+
+#text {
+  background-color: #372e29;
+  color: white;
+  padding: 10px;
+}
+
+#game, #controls {
+  background: url('https://upload.wikimedia.org/wikipedia/commons/2/2e/Wood_background.jpg') no-repeat center center fixed;
+  -webkit-background-size: cover;
+  -moz-background-size: cover;
+  -o-background-size: cover;
+  background-size: cover;
+  text-align: center;
+}
+
+#game {
+  max-width: 40%;
+  max-height: 50%;
+  background-color: lightgray;
+  color: white;
+  margin: 0 auto;
+  padding: 5px;
+}
+
+#controls {
+  padding: 5px;
+  display: flex;
+  justify-content: space-between;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+#controls button {
+  flex: 1;
+  text-decoration: none;
+  text-transform: uppercase;
+  padding: 10px;
+  background-color: #8B4513;
+  color: #fff;
+  border: 2px solid #8B4513;
+  border-radius: 6px;
+  margin-right: 10px;
+  transition: all .5s ease;
+}
+
+#controls button:last-child {
+  margin-right: 0;
+}
+
+#stats, #monsterStats {
+  padding: 5px;
+  border: 1px #222f5b solid;
+  color: white;
+  display: flex;
+  align-items: center;
+}
+
+#stats {
+  background-image: url("https://cdn-hogwartslegacy.warnerbrosgames.com/static/header-bg.jpg");
+}
+
+#monsterStats {
+  display: none;
+  background-color: red;
+}
+
+.level-container {
+  display: inline-block;
+  vertical-align: middle;
+  position: relative;
+  margin-right: 20px;
+}
+
+.level-circle, .circle-progress-bar-cover, .progress-ring__circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  text-align: center;
+  line-height: 40px;
+  font-weight: bold;
+  position: absolute;
+}
+
+.circle-progress-bar, .circle-progress-bar-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.circle-progress-bar-fill {
+  background: conic-gradient(#00ff00 0%, #00ff00 var(--progress), transparent var(--progress), transparent 100%);
+  transform: rotate(-90deg);
+  --progress: 0%;
+}
+
+.circle-progress-bar-cover {
+  top: 4px;
+  left: 4px;
+  width: calc(100% - 8px);
+  height: calc(100% - 8px);
+  z-index: 1;
+}
+
+#level {
+  z-index: 999;
+  position: relative;
+}
+
+.health-bar-container {
+  width: 30%;
+  max-width: 300px;
+  background-color: #ddd;
+  border-radius: 5px;
+  overflow: hidden;
+  position: relative;
+  flex-grow: 1;
+}
+
+.health-bar, .health-bar-fill {
+  position: relative;
+  width: 100%;
+  height: 20px;
+}
+
+.health-bar-fill {
+  background-color: red;
+  height: 100%;
+  width: 0%;
+}
+
+#health-text {
+  position: absolute;
+  width: 100%;
+  text-align: center;
+  line-height: 20px;
+  color: white;
+  top: 0;
+  left: 0;
+}
+
+.currency-container {
+  float: right;
+  margin-left: auto;
+}
+
+.currency {
+  display: inline-block;
+  margin-left: 10px;
+}
+
+.coin {
+  display: inline-block;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  margin-right: 5px;
+}
+
+.bronze { background-color: #cd7f32; }
+.silver { background-color: #c0c0c0; }
+.gold   { background-color: #ffd700; }
+
+.inventoryList {
+  list-style-type: none;
+  overflow-y: auto;
+  max-height: 300px;
+}
+
+.inventoryList li {
+  display: flex;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.squareIndicator {
+  width: 10px;
+  height: 10px;
+  background-color: green;
+  border-radius: 2px;
+  margin-right: 10px;
+}
+
+.tooltip {
+  position: relative;
+  display: inline-block;
+  border-bottom: 1px dotted black;
+}
+
+.tooltip .tooltiptext {
+  visibility: hidden;
+  width: 120px;
+  background-color: black;
+  color: #fff;
+  text-align: center;
+  border-radius: 6px;
+  padding: 5px;
+  position: absolute;
+  z-index: 1;
+  bottom: 125%;
+  left: 50%;
+  margin-left: -60px;
+}
+
+.tooltip:hover .tooltiptext {
+  visibility: visible;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+}
